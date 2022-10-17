@@ -1,13 +1,17 @@
 import streamlit as st
-from html_shaper import load_html, slice_html, rep_bold
+from html_shaper import rep_bold
+from load_comments import load_html
+
 
 def main():
-    TOTAL_PAGES = 2
+    TOTAL_PAGES = 200
 
     # インスタンスを建てる (boot時のみ初期化の処理)
     if "_is_boot" not in st.session_state:
         st.session_state["_is_boot"] = True
-        app = MainApp(TOTAL_PAGES, _is_boot=True)  # この中で st.session_state["page"] も初期化している
+        app = MainApp(
+            TOTAL_PAGES, _is_boot=True
+        )  # この中で st.session_state["page"] も初期化している
     else:
         app = MainApp()
 
@@ -20,7 +24,7 @@ def main():
 
 
 # session_stateの初期化・更新、ウィジェット配置、アノテーションデータの生成をするクラス
-class MainApp():
+class MainApp:
     def __init__(self, total_pages=None, _is_boot=False) -> None:
         if _is_boot:
             assert type(total_pages) is int
@@ -43,12 +47,10 @@ class MainApp():
     def _initialize_page(self):
         n = self.page_now
         st.session_state[n] = True  # n番目のページを既読状態に
-        # htmlテキストを読み、pid, タイトルをキャッシュ
-        html_text, pid, title = load_html(n)
+        # キャッシュ
+        cmts, cmt_lvs, pid, title = load_html(n)
         st.session_state[f"pid_{n}"] = pid
         st.session_state[f"title_{n}"] = title
-        # コメントリスト, コメント数, コメントレベルリストをキャッシュ
-        cmts, cmt_lvs = slice_html(html_text)
         st.session_state[f"cmt_{n}"] = cmts
         st.session_state[f"cmtlen_{n}"] = len(cmts)
         st.session_state[f"cmtlvs_{n}"] = cmt_lvs
@@ -60,6 +62,7 @@ class MainApp():
                 k = f"{pid}_{j}"  # ページID = pid のスレッドの n 番目のコメントのチェック状態
                 if k not in st.session_state:
                     st.session_state[k] = False
+
         initialize_checked(n)
 
     # n番目の(静的)データをキャッシュからインスタンス変数に割り当てる
@@ -89,6 +92,7 @@ class MainApp():
     @staticmethod
     def _arrange_header():
         from PIL import Image
+
         st.markdown(
             "<style>" + open(r"style.css").read() + "</style>", unsafe_allow_html=True
         )  # CSS読み込み
@@ -97,7 +101,7 @@ class MainApp():
         with col_headerL:
             st.title("議論の過熱に関する調査実験")
         with col_headerR:
-            image = Image.open('sociocom-logo-circle.png')  # ラボのGoogle Driveにあるロゴ画像
+            image = Image.open("sociocom-logo-circle.png")  # ラボのGoogle Driveにあるロゴ画像
             st.image(image)
 
     # 名前登録部分
@@ -134,10 +138,18 @@ class MainApp():
         left_col, center_col, right_col = st.columns(3)
         with left_col:
             if st.session_state["page"] > 1:
-                st.button(label="<< Prev", on_click=self._minus_one_page, key=f"{embbed_key}_left")
+                st.button(
+                    label="<< Prev",
+                    on_click=self._minus_one_page,
+                    key=f"{embbed_key}_left",
+                )
         with right_col:
             if st.session_state["page"] < self._totalpgs:
-                st.button(label="Next >>", on_click=self._plus_one_page, key=f"{embbed_key}_right")
+                st.button(
+                    label="Next >>",
+                    on_click=self._plus_one_page,
+                    key=f"{embbed_key}_right",
+                )
         # 現在のページ番号
         with center_col:
             st.write(f"スレッド: {st.session_state['page']} / {self._totalpgs}")
@@ -145,9 +157,12 @@ class MainApp():
     # アノテーションの部分
     def _arrange_thread(self):
         from streamlit_extras.colored_header import colored_header
+
         # ヘッダ
         colored_header(
-            label=self.title, description="過熱している投稿にチェックをつけてください。", color_name="blue-green-70"
+            label=self.title,
+            description="過熱している投稿にチェックをつけてください。",
+            color_name="blue-green-70",
         )
         # 各コメントのアノテーションエリア
         for i, comment in enumerate(self.cmts):
@@ -156,7 +171,9 @@ class MainApp():
             # チェックボックスの配置
             with col1:
                 k = f"{self.pid}_{i}"
-                st.checkbox("HOT", key=f"{k}_chk", value=st.session_state[k])  # valueにキャッシュを代入して状態を復元
+                st.checkbox(
+                    "HOT", key=f"{k}_chk", value=st.session_state[k]
+                )  # valueにキャッシュを代入して状態を復元
             # コメントの配置
             with col2:
                 is_init_line = True
@@ -202,6 +219,7 @@ class MainApp():
 
     def _arrange_dl_field(self):  # DBに送信するのではなくアノテーションデータをいったん手元にDLしてもらう形にした
         import json
+
         is_next = st.button("DATA EXPORT")
         # 書き出し準備ができた状態で "DATA EXPORT" を押すと書き出し
         if is_next:
@@ -211,7 +229,7 @@ class MainApp():
                 label="JSONをダウンロード",
                 data=json.dumps(dict_for_dl, indent=4),
                 file_name=f'Annotation_{st.session_state["name"]}.json',
-                mime='application/json',
+                mime="application/json",
             )
 
     def _generate_data(self):  # アノテーションデータを生成
@@ -225,10 +243,7 @@ class MainApp():
             }
             for i in range(self._totalpgs)
         }  # 二重の辞書内包表記
-        data = {
-            "Name": st.session_state["name"],
-            "Annotation": annot_data
-        }
+        data = {"Name": st.session_state["name"], "Annotation": annot_data}
         return data
 
     # ページ遷移を行うコールバック関数
@@ -245,5 +260,5 @@ class MainApp():
             st.session_state[k] = st.session_state[f"{k}_chk"]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
