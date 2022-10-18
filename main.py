@@ -4,7 +4,7 @@ from load_comments import load_html
 
 
 def main():
-    TOTAL_PAGES = 200
+    TOTAL_PAGES = 100
 
     # インスタンスを建てる (boot時のみ初期化の処理)
     if "_is_boot" not in st.session_state:
