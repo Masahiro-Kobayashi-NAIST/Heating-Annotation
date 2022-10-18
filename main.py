@@ -139,14 +139,14 @@ class MainApp:
         with left_col:
             if st.session_state["page"] > 1:
                 st.button(
-                    label="<< Prev",
+                    label="<< PREV",
                     on_click=self._minus_one_page,
                     key=f"{embbed_key}_left",
                 )
         with right_col:
             if st.session_state["page"] < self._totalpgs:
                 st.button(
-                    label="Next >>",
+                    label="NEXT >>",
                     on_click=self._plus_one_page,
                     key=f"{embbed_key}_right",
                 )
@@ -204,45 +204,51 @@ class MainApp:
 
     def _arrange_export_field(self):  # アノテーションデータのエクスポート
         st.header("データ生成")
-        st.warning("すべてのページを確認してからエクスポートしてください", icon=None)
-        is_checked = st.checkbox("すべてのページを確認しました")
+        st.warning("以下にチェックを入れてからエクスポートしてください", icon=None)
+        is_checked = st.checkbox("ページを確認を終了しました")
         if is_checked:
             # ユーザー名の確認
             is_name_filled = bool(st.session_state["name"])
             if not is_name_filled:
                 st.error("ユーザー名が空白です")
-            # ページ既読の確認
-            elif not all([st.session_state[i + 1] for i in range(self._totalpgs)]):
-                st.error("未読のページがあります")
             else:
                 self._arrange_dl_field()
 
     def _arrange_dl_field(self):  # DBに送信するのではなくアノテーションデータをいったん手元にDLしてもらう形にした
         import json
 
-        is_next = st.button("DATA EXPORT")
-        # 書き出し準備ができた状態で "DATA EXPORT" を押すと書き出し
-        if is_next:
-            dict_for_dl = self._generate_data()
-            st.write("アノテーションデータを生成しました")
-            st.download_button(
-                label="JSONをダウンロード",
-                data=json.dumps(dict_for_dl, indent=4),
-                file_name=f'Annotation_{st.session_state["name"]}.json',
-                mime="application/json",
-            )
+        select_min, select_max = st.select_slider(
+            "データの生成範囲を選択してください",
+            options=list(range(1, self._totalpgs + 1)),
+            value=(1, 100),
+        )
+        # ページ既読の確認
+        if not all([st.session_state[i] for i in range(select_min, select_max + 1)]):
+            st.error("選択範囲内に未読のページがあります")
+        else:
+            is_next = st.button("DATA EXPORT")
+            # 書き出し準備ができた状態で "DATA EXPORT" を押すと書き出し
+            if is_next:
+                dict_for_dl = self._generate_data(select_min, select_max)
+                st.write("アノテーションデータを生成しました")
+                st.download_button(
+                    label="JSONをダウンロード",
+                    data=json.dumps(dict_for_dl, indent=4),
+                    file_name=f'Annotation_{st.session_state["name"]}.json',
+                    mime="application/json",
+                )
 
-    def _generate_data(self):  # アノテーションデータを生成
-        for i in range(len(self.cmts)):
+    def _generate_data(self, page_min, page_max):  # アノテーションデータを生成
+        for i in range(self.cmtlen):
             k = f"{self.pid}_{i}"
             st.session_state[k] = st.session_state[f"{k}_chk"]  # 現在のページの状態を保存してから
         annot_data = {
-            st.session_state[f"pid_{i+1}"]: {
-                j: st.session_state[f"{st.session_state[f'pid_{i+1}']}_{j}"]
-                for j in range(st.session_state[f"cmtlen_{i+1}"])
+            st.session_state[f"pid_{i}"]: {
+                j: st.session_state[f"{st.session_state[f'pid_{i}']}_{j}"]
+                for j in range(st.session_state[f"cmtlen_{i}"])
             }
-            for i in range(self._totalpgs)
-        }  # 二重の辞書内包表記
+            for i in range(page_min, page_max + 1)
+        }  # 二重の辞書内包表記でデータ生成
         data = {"Name": st.session_state["name"], "Annotation": annot_data}
         return data
 
